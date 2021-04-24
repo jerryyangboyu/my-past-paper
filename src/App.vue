@@ -112,6 +112,16 @@ export default {
     };
   },
 
+  watch: {
+    showAnswer() {
+      if (!this.showAnswer) {
+        document.querySelector(".scalable-aside").style.width = "100%";
+      } else {
+        document.querySelector(".scalable-aside").style.width = "50%";
+      }
+    }
+  },
+
   methods: {
     handleSeparatorMouseDown(e) {
       this.mouseDown = true;
@@ -135,6 +145,10 @@ export default {
       let newWidth = this.startWidth + e.clientX - this.startX;
       // document.querySelector(".scalable-aside").style.flex = "auto";
       document.querySelector(".scalable-aside").style.width = newWidth + "px";
+      if (newWidth / window.innerWidth > .75 && this.showAnswer) {
+        document.querySelector(".scalable-aside").style.width = window.innerWidth - 14 + "px";
+        this.showAnswer = false;
+      }
       console.log("move", newWidth + "px");
     },
     handleSeparatorMouseUp() {
