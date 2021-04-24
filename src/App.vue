@@ -11,15 +11,18 @@
 
       <transition name="el-fade-in-linear">
         <div class="container100 paper-container" v-if="showWidget">
-          <div class="paper-frame">
+          <div class="scalable-aside">
             <iframe
               class="frame left-frame"
               :src="paperURL"
               frameborder="0"
             ></iframe>
+            <div class="separator" @mousedown="handleSeparatorMouseDown">
+              <i></i><i></i>
+            </div>
           </div>
           <transition name="el-fade-in-linear">
-            <div class="paper-frame" v-if="showAnswer">
+            <div class="scalable-main" v-show="showAnswer">
               <iframe
                 class="frame right-frame"
                 :src="markingURL"
@@ -49,6 +52,10 @@
           >
           </el-switch>
         </el-form-item>
+
+        <el-form-item label="版本" style="flex: 1; display: flex; justify-content: flex-end">
+          <el-tag>{{version}}</el-tag>
+        </el-form-item>
       </el-form>
     </el-footer>
   </el-container>
@@ -60,6 +67,7 @@ export default {
 
   data() {
     return {
+      version: "v0.0.2 beta",
       prefix: "https://papers.gceguide.com/A%20Levels/",
       showAnswer: true,
       value: [],
@@ -97,11 +105,43 @@ export default {
           yearFrom: 15,
           yearTo: 20,
         },
-      ]
+      ],
+
+      startX: 0,
+      startWidth: 0,
     };
   },
 
   methods: {
+    handleSeparatorMouseDown(e) {
+      this.mouseDown = true;
+      this.startX = e.clientX; // integer
+      this.startWidth = parseInt(
+        window.getComputedStyle(document.querySelector(".scalable-aside"))
+          .width,
+        10
+      ); //string -> int
+      document.documentElement.addEventListener(
+        "mousemove",
+        this.handleSeparatorMouseMove
+      );
+      document.documentElement.addEventListener(
+        "mouseup",
+        this.handleSeparatorMouseUp
+      );
+      console.log("mouse down");
+    },
+    handleSeparatorMouseMove(e) {
+      let newWidth = this.startWidth + e.clientX - this.startX;
+      // document.querySelector(".scalable-aside").style.flex = "auto";
+      document.querySelector(".scalable-aside").style.width = newWidth + "px";
+      console.log("move", newWidth + "px");
+    },
+    handleSeparatorMouseUp() {
+      document.documentElement.removeEventListener("mousemove", this.handleSeparatorMouseMove);
+      document.documentElement.removeEventListener("mouseup", this.handleSeparatorMouseUp);
+      console.log("up");
+    },
     handleChange(value) {
       if (value != null) {
         const subject = value[0];
@@ -115,10 +155,15 @@ export default {
         const fullMarkingURL = `${this.prefix}${subject}${year}${subjectCode}_${seasonChar}${shortYear}_ms_${component}.pdf`;
 
         console.log(value);
-        console.log(fullPaperURL)
+        console.log(fullPaperURL);
 
         this.paperURL = fullPaperURL;
         this.markingURL = fullMarkingURL;
+
+        localStorage.setItem("paperURL", this.paperURL);
+        localStorage.setItem("markingURL", this.markingURL);
+        localStorage.setItem("paperChoice", this.value);
+
         this.showWidget = true;
       } else {
         console.log("Has been cleared.");
@@ -199,13 +244,19 @@ export default {
 
       function pushAll() {
         for (let i = 0; i < subjects.length; i++) {
-          const name = subjects[i].alias ? subjects[i].alias: subjects[i].name;
-          pushSubject(name, subjects[i].name, subjects[i].paperNum, subjects[i].yearFrom, subjects[i].yearTo);
+          const name = subjects[i].alias ? subjects[i].alias : subjects[i].name;
+          pushSubject(
+            name,
+            subjects[i].name,
+            subjects[i].paperNum,
+            subjects[i].yearFrom,
+            subjects[i].yearTo
+          );
           subjectIndex++;
         }
       }
 
-      pushAll()
+      pushAll();
 
       // console.log(options);
 
@@ -215,6 +266,13 @@ export default {
 
   created() {
     this.generateOptionsArray();
+    this.paperURL = localStorage.getItem("paperURL") || "";
+    this.markingURL = localStorage.getItem("markingURL") || "";
+
+    if (this.paperURL != "" && this.markingURL != "") {
+      this.showWidget = true;
+      this.value = localStorage.getItem("paperChoice").split(",");
+    }
   },
 };
 </script>
@@ -240,10 +298,42 @@ body {
 
 .left-frame {
   width: 100%;
+  overflow-y: hidden;
 }
-
 .right-frame {
   width: 100%;
+  overflow-y: hidden;
+}
+
+.scalable-aside {
+  width: 50%;
+  position: relative;
+}
+
+.scalable-aside .separator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  /* box-shadow: 0px, 0px, 2px, rgba(0, 0, 0, 0.35); */
+  cursor: col-resize;
+}
+
+.scalable-aside .separator i {
+  display: inline-block;
+  height: 14px;
+  width: 1px;
+  background-color: #807373;
+  margin: 0 1px;
+}
+
+.scalable-main {
+  flex: 1;
 }
 
 .container100 {
@@ -255,15 +345,12 @@ body {
   display: flex;
 }
 
-.paper-frame {
-  width: 100%;
-}
-
 .el-input {
   width: 15rem !important;
 }
 
 .el-form {
+  display: flex;
   padding: 0.5rem;
 }
 </style>
