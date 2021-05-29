@@ -1,5 +1,20 @@
 <template>
   <el-container class="container100">
+    <el-drawer
+        title="历史浏览试卷"
+        v-model="showHistoryPapers"
+        direction="rtl"
+        size="36%">
+      <el-timeline :reverse="true" v-if="historyPapers.papers">
+          <el-timeline-item onclick=""
+              v-for="(paper, index) in historyPapers.papers"
+              :key="index"
+              :timestamp="paper.lastUpdate">
+              {{paper.paperURL.split('/').pop()}}
+          </el-timeline-item>
+      </el-timeline>
+    </el-drawer>
+
     <el-main class="container100">
       <transition name="el-fade-in-linear">
         <el-empty
@@ -44,7 +59,7 @@
           ></el-cascader>
         </el-form-item>
 
-        <el-form-item label="显示答案">
+        <el-form-item label="显示答案" v-show="paperURL !== ''">
           <el-switch
             v-model="showAnswer"
             active-color="#13ce66"
@@ -53,9 +68,29 @@
           </el-switch>
         </el-form-item>
 
-        <el-form-item label="版本" style="flex: 1; display: flex; justify-content: flex-end">
-          <el-tag>{{version}}</el-tag>
+        <el-form-item label="全屏答案" v-if="showAnswer" v-show="paperURL !== ''">
+          <el-switch
+              v-model="fullScreenAnswer"
+              active-color="#13ce66"
+              inactive-color="#ff4949"
+          >
+          </el-switch>
         </el-form-item>
+
+
+
+        <div style="flex: 1; display: flex; justify-content: flex-end">
+          <el-form-item>
+            <el-button plain icon="el-icon-time" circle @click="showHistoryPapers = !showHistoryPapers"></el-button>
+          </el-form-item>
+
+          <el-form-item>
+            <el-tooltip effect="dark" :content="`版本：${version}`" placement="top-end">
+              <el-button plain icon="el-icon-time" circle></el-button>
+            </el-tooltip>
+          </el-form-item>
+        </div>
+
       </el-form>
     </el-footer>
   </el-container>
@@ -67,13 +102,19 @@ export default {
 
   data() {
     return {
-      version: "v0.0.2 beta",
+      // --------Control Variables----------
+      version: "v0.0.3 beta",
       prefix: "https://papers.gceguide.com/A%20Levels/",
       showAnswer: true,
+      fullScreenAnswer: false,
       value: [],
       showWidget: false,
       paperURL: "",
       markingURL: "",
+      historyPapers: {},
+      showHistoryPapers: false,
+
+      // -------Pure Data----------
       options: [],
       subjects: [
         {
@@ -116,8 +157,20 @@ export default {
     showAnswer() {
       if (!this.showAnswer) {
         document.querySelector(".scalable-aside").style.width = "100%";
+      } else if (this.showAnswer && this.fullScreenAnswer) {
+        document.querySelector(".scalable-aside").style.width = "0%";
       } else {
         document.querySelector(".scalable-aside").style.width = "50%";
+      }
+    },
+
+    fullScreenAnswer() {
+      if(this.showAnswer) {
+        if(this.fullScreenAnswer) {
+          document.querySelector(".scalable-aside").style.width = "0%";
+        } else {
+          document.querySelector(".scalable-aside").style.width = "50%";
+        }
       }
     }
   },
@@ -177,6 +230,16 @@ export default {
         localStorage.setItem("paperURL", this.paperURL);
         localStorage.setItem("markingURL", this.markingURL);
         localStorage.setItem("paperChoice", this.value);
+
+        // TODO add response detector if 404 then intercept the request and handle error
+        this.historyPapers.papers.push({
+          paperURL: this.paperURL,
+          markingURL: this.markingURL,
+          lastUpdate: (new Date()).toLocaleDateString()
+        });
+        this.historyPapers.lastUpdate = (new Date()).toLocaleDateString();
+        localStorage.setItem("historyPapers", JSON.stringify(this.historyPapers));
+
 
         this.showWidget = true;
       } else {
@@ -279,11 +342,22 @@ export default {
   },
 
   created() {
+    // initialise data storage && control variables
     this.generateOptionsArray();
     this.paperURL = localStorage.getItem("paperURL") || "";
     this.markingURL = localStorage.getItem("markingURL") || "";
+    if (localStorage.getItem("historyPapers") == null) {
+      const initialData = {
+        lastUpdate: (new Date()).toLocaleDateString(),
+        papers: []
+      }
+      const serialData = JSON.stringify(initialData);
+      console.log(serialData)
+      localStorage.setItem("historyPapers", serialData);
+    }
+    this.historyPapers = JSON.parse(localStorage.getItem("historyPapers"));
 
-    if (this.paperURL != "" && this.markingURL != "") {
+    if (this.paperURL !== "" && this.markingURL !== "") {
       this.showWidget = true;
       this.value = localStorage.getItem("paperChoice").split(",");
     }
